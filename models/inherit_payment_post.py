@@ -13,10 +13,23 @@ class AccountPayment(models.Model):
         res = super(AccountPayment, self).action_post()
 
         # 2. After successful posting, push data to E-Tax API
+        api_called = False
         for payment in self:
             if payment.payment_type == 'inbound': # Only post incoming customer payments
                 payment._post_payment_to_etaxris()
+                api_called = True
                 
+        if api_called and isinstance(res, (bool, type(None))):
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('E-Tax Auto Post Successful'),
+                    'message': _('The payment was successfully posted to the E-Tax API.'),
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
         return res
 
     def _post_payment_to_etaxris(self):
@@ -106,3 +119,28 @@ class AccountPayment(models.Model):
             _logger.error(error_msg)
             self.message_post(body=error_msg)
             return False
+
+class AccountPaymentRegister(models.TransientModel):
+    _inherit = 'account.payment.register'
+
+    def action_create_payments(self):
+        # The standard method creates and posts the payments
+        # This will internally trigger account.payment.action_post() which calls our E-Tax logic
+        res = super(AccountPaymentRegister, self).action_create_payments()
+        
+        # If it's a customer payment (inbound), show a success notification
+        if self.payment_type == 'inbound':
+            notification = {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('E-Tax Auto Post Successful'),
+                    'message': _('The payment was successfully posted to the E-Tax API.'),
+                    'type': 'success',
+                    'sticky': False,
+                    'next': res if isinstance(res, dict) else {'type': 'ir.actions.act_window_close'}
+                }
+            }
+            return notification
+            
+        return res
