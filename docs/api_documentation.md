@@ -6,16 +6,19 @@ This document outlines the API integration, configuration, and underlying logic 
 The **E-Tax Auto Post** module automates the submission of transaction data from Odoo directly to an external E-Tax system. It intercepts standard accounting workflows and pushes financial data whenever an outgoing invoice is confirmed or an incoming customer payment is registered.
 
 ## 2. Configuration & Settings
-To configure the module, open Odoo and navigate to the newly created App menu:
-**E-Tax Auto Post** -> **Configuration** -> **Settings**.
 
-You will need to configure the following parameters provided by your E-Tax system provider:
+### Global Settings
+To configure the main endpoint, open Odoo and navigate to the App menu:
+**E-Tax Auto Post** -> **Configuration** -> **Settings**.
 * **E-Tax API Endpoint**: The URL where the payload will be sent. 
   *(Default: `http://localhost:8069/api/etax/payment`)*
-* **E-Tax API Token**: The authentication token used to securely transmit data. 
-  *(Default: `ac71b...`)*
 
-> **Note:** The module securely stores these values in Odoo's `ir.config_parameter` database.
+### User Authentication (Static Token)
+Each user must have a valid API token to post data. This is configured in the User Preferences:
+1. Go to **Settings -> Users & Companies -> Users** (or click your profile -> My Profile).
+2. Open the **E-Tax API** tab.
+3. If the **Static Token** is empty, click the **Generate New Token** button.
+This token will be securely passed as a Bearer token whenever you confirm a payment.
 
 ## 3. Triggers & Workflows
 The module automatically triggers API calls in two specific scenarios:

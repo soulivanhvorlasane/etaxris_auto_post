@@ -37,20 +37,25 @@ class AccountPayment(models.Model):
             'buyer_tin': buyer_tin,
             'buyer_name': buyer_name,
             'invoice_no': invoice_no,
-            'invoice_date': str(payment_date),
+            'payment_date': str(payment_date),
             'sales_amount': sales_amount,
-            'description': f'Payment via {payment_method}'
+            'payment_method': payment_method
         }
 
-        # Get API credentials from settings, falling back to defaults if not set
+        # Get API endpoint from settings
         payment_url = self.env['ir.config_parameter'].sudo().get_param(
             'etaxris_auto_post.api_endpoint', 
-            default='http://localhost:8069/api/etax/invoice'
+            default='http://localhost:8069/api/etax/payment'
         )
-        token = self.env['ir.config_parameter'].sudo().get_param(
-            'etaxris_auto_post.api_token',
-            default='ac71b0212d793d832e7b1c742c007a88bc01d6ecce320a34324108a32d16b352'
-        )
+        
+        # Use the static token from the current user's settings instead of the global configuration
+        token = self.env.user.etax_api_token
+
+        if not token:
+            error_msg = _("E-Tax API Error: No Static Token found for your user. Please generate one in your User Preferences under the E-Tax API tab.")
+            _logger.error(error_msg)
+            self.message_post(body=error_msg)
+            return False
         
         # Include token in payload as requested
         payload['token'] = token
