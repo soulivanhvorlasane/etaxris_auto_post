@@ -23,7 +23,7 @@ class AccountPayment(models.Model):
         self.ensure_one()
         
         buyer_tin = self.partner_id.vat or "Unknown TIN"
-        invoice_no = self.ref or self.name or "Unknown Invoice"
+        invoice_no = getattr(self, 'memo', False) or getattr(self, 'payment_reference', False) or self.name or "Unknown Invoice"
         payment_date = self.date
         
         # Calculate 10% VAT
