@@ -13,23 +13,37 @@ class AccountPayment(models.Model):
         res = super(AccountPayment, self).action_post()
 
         # 2. After successful posting, push data to E-Tax API
+        api_success = True
         api_called = False
         for payment in self:
             if payment.payment_type == 'inbound': # Only post incoming customer payments
-                payment._post_payment_to_etaxris()
+                if not payment._post_payment_to_etaxris():
+                    api_success = False
                 api_called = True
                 
         if api_called and isinstance(res, (bool, type(None))):
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': _('E-Tax Auto Post Successful'),
-                    'message': _('The payment was successfully posted to the E-Tax API.'),
-                    'type': 'success',
-                    'sticky': False,
+            if api_success:
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('E-Tax Auto Post Successful'),
+                        'message': _('The payment was successfully posted to the E-Tax API.'),
+                        'type': 'success',
+                        'sticky': False,
+                    }
                 }
-            }
+            else:
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('E-Tax Auto Post Failed'),
+                        'message': _('Failed to post payment to the E-Tax API. Check the payment chatter for details.'),
+                        'type': 'danger',
+                        'sticky': True,
+                    }
+                }
         return res
 
     def _post_payment_to_etaxris(self):
@@ -128,19 +142,50 @@ class AccountPaymentRegister(models.TransientModel):
         # This will internally trigger account.payment.action_post() which calls our E-Tax logic
         res = super(AccountPaymentRegister, self).action_create_payments()
         
-        # If it's a customer payment (inbound), show a success notification
+        # If it's a customer payment (inbound), we need to determine if it succeeded
+        # Since the payments are already created, we can check if they have E-Tax API Error messages in their chatter
         if self.payment_type == 'inbound':
-            notification = {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': _('E-Tax Auto Post Successful'),
-                    'message': _('The payment was successfully posted to the E-Tax API.'),
-                    'type': 'success',
-                    'sticky': False,
-                    'next': res if isinstance(res, dict) else {'type': 'ir.actions.act_window_close'}
+            # Find the payments created in the current transaction for this wizard
+            payments = self.env['account.payment'].search([('ref', '=', self.communication)])
+            if not payments:
+                # Fallback to order/invoice name
+                payments = self.env['account.payment'].search([], order='id desc', limit=1)
+            
+            # Check if an error was logged on the payment
+            api_failed = False
+            for payment in payments:
+                errors = self.env['mail.message'].search([
+                    ('res_id', '=', payment.id),
+                    ('model', '=', 'account.payment'),
+                    ('body', 'ilike', 'E-Tax API Error')
+                ], limit=1)
+                if errors:
+                    api_failed = True
+                    
+            if not api_failed:
+                notification = {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('E-Tax Auto Post Successful'),
+                        'message': _('The payment was successfully posted to the E-Tax API.'),
+                        'type': 'success',
+                        'sticky': False,
+                        'next': res if isinstance(res, dict) else {'type': 'ir.actions.act_window_close'}
+                    }
                 }
-            }
+            else:
+                notification = {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('E-Tax Auto Post Failed'),
+                        'message': _('Failed to post payment to the E-Tax API. Please check the chatter on the Payment record for error details.'),
+                        'type': 'danger',
+                        'sticky': True,
+                        'next': res if isinstance(res, dict) else {'type': 'ir.actions.act_window_close'}
+                    }
+                }
             return notification
             
         return res
