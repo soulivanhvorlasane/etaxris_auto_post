@@ -146,7 +146,8 @@ class AccountPaymentRegister(models.TransientModel):
         # Since the payments are already created, we can check if they have E-Tax API Error messages in their chatter
         if self.payment_type == 'inbound':
             # Find the payments created in the current transaction for this wizard
-            payments = self.env['account.payment'].search([('ref', '=', self.communication)])
+            # In Odoo 18, account.payment uses 'memo' instead of 'ref'
+            payments = self.env['account.payment'].search([('memo', '=', self.communication)])
             if not payments:
                 # Fallback to order/invoice name
                 payments = self.env['account.payment'].search([], order='id desc', limit=1)
