@@ -8,17 +8,16 @@ _logger = logging.getLogger(__name__)
 class AccountPayment(models.Model):
     _inherit = 'account.payment'
 
-    @api.model_create_multi
-    def create(self, vals_list):
-        # 1. Create standard Odoo payment records
-        payments = super(AccountPayment, self).create(vals_list)
+    def action_post(self):
+        # 1. Call standard Odoo posting logic
+        res = super(AccountPayment, self).action_post()
 
-        # 2. After creation, push to E-Tax API
-        for payment in payments:
+        # 2. After successful posting, push data to E-Tax API
+        for payment in self:
             if payment.payment_type == 'inbound': # Only post incoming customer payments
                 payment._post_payment_to_etaxris()
                 
-        return payments
+        return res
 
     def _post_payment_to_etaxris(self):
         self.ensure_one()
