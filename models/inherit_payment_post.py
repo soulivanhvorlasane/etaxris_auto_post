@@ -31,19 +31,21 @@ class AccountPayment(models.Model):
         vat_amount = sales_amount * 0.10
         payment_method = self.payment_method_id.name or "payment"
 
+        buyer_name = self.partner_id.name or "Unknown Customer"
+
         payload = {
             'buyer_tin': buyer_tin,
+            'buyer_name': buyer_name,
             'invoice_no': invoice_no,
-            'payment_date': str(payment_date),
+            'invoice_date': str(payment_date),
             'sales_amount': sales_amount,
-            'vat_amount': vat_amount,
-            'payment_method': payment_method
+            'description': f'Payment via {payment_method}'
         }
 
         # Get API credentials from settings, falling back to defaults if not set
         payment_url = self.env['ir.config_parameter'].sudo().get_param(
             'etaxris_auto_post.api_endpoint', 
-            default='http://localhost:8069/api/etax/payment'
+            default='http://localhost:8069/api/etax/invoice'
         )
         token = self.env['ir.config_parameter'].sudo().get_param(
             'etaxris_auto_post.api_token',

@@ -6,7 +6,7 @@ class ResConfigSettings(models.TransientModel):
     etaxris_api_endpoint = fields.Char(
         string='E-Tax API Endpoint',
         config_parameter='etaxris_auto_post.api_endpoint',
-        default='http://localhost:8069/api/etax/payment'
+        default='http://localhost:8069/api/etax/invoice'
     )
     etaxris_api_token = fields.Char(
         string='E-Tax API Token',
