@@ -58,9 +58,15 @@ class AccountMove(models.Model):
             'payment_method': "invoice_confirmation"
         }
 
-        payment_url = "http://localhost:8069/api/etax/payment"
-        # Using static token 
-        token = "ac71b0212d793d832e7b1c742c007a88bc01d6ecce320a34324108a32d16b352"
+        # Get API credentials from settings, falling back to defaults if not set
+        payment_url = self.env['ir.config_parameter'].sudo().get_param(
+            'etaxris_auto_post.api_endpoint', 
+            default='http://localhost:8069/api/etax/payment'
+        )
+        token = self.env['ir.config_parameter'].sudo().get_param(
+            'etaxris_auto_post.api_token',
+            default='ac71b0212d793d832e7b1c742c007a88bc01d6ecce320a34324108a32d16b352'
+        )
         
         # Following requirements: including token in payload AND header
         payload['token'] = token
