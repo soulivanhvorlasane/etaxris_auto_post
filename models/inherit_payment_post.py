@@ -22,7 +22,7 @@ class AccountPayment(models.Model):
     def _post_payment_to_etaxris(self):
         self.ensure_one()
         
-        buyer_tin = self.partner_id.vat or "Unknown TIN"
+        buyer_tin = self.company_id.vat or "Unknown TIN"
         
         # Determine invoice number from payment reference
         ref_val = getattr(self, 'memo', False) or getattr(self, 'payment_reference', False) or self.name or ""
@@ -37,7 +37,8 @@ class AccountPayment(models.Model):
         
         if invoice:
             sales_amount = float(invoice.amount_untaxed)
-            buyer_tin = invoice.partner_id.vat or buyer_tin
+            # The user explicitly wants TIN from Company info, so we ensure it remains company_id.vat
+            buyer_tin = self.company_id.vat or invoice.company_id.vat or "Unknown TIN"
             
         payment_date = self.date
         
