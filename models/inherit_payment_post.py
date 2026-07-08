@@ -97,9 +97,16 @@ class AccountPayment(models.Model):
         
         # Use the static token from the current user's settings instead of the global configuration
         token = self.env.user.etax_api_token
+        
+        # Fallback: If the current user (e.g. a normal salesperson) doesn't have a token,
+        # search the system for a dedicated API user (like vorlasanedev@gmail.com) who has one.
+        if not token:
+            system_user = self.env['res.users'].sudo().search([('etax_api_token', '!=', False)], limit=1)
+            if system_user:
+                token = system_user.etax_api_token
 
         if not token:
-            error_msg = _("E-Tax API Error: No Static Token found for your user. Please generate one in your User Preferences under the E-Tax API tab.")
+            error_msg = _("E-Tax API Error: No Static Token found in the system. Please generate one in a User's Preferences.")
             _logger.error(error_msg)
             self.message_post(body=error_msg)
             return False
