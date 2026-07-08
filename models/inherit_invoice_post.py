@@ -8,30 +8,7 @@ _logger = logging.getLogger(__name__)
 class AccountMove(models.Model):
     _inherit = 'account.move'
 
-    def action_post(self):
-        # 1. Call standard Odoo posting logic
-        res = super(AccountMove, self).action_post()
 
-        # 2. After successful posting, push data to E-Tax API
-        notification = None
-        for move in self:
-            if move.move_type == 'out_invoice':
-                success, msg = move._post_invoice_to_etaxris()
-                if not notification:
-                    notification = {
-                        'type': 'ir.actions.client',
-                        'tag': 'display_notification',
-                        'params': {
-                            'title': 'E-Tax Integration',
-                            'message': msg,
-                            'type': 'success' if success else 'danger',
-                            'sticky': not success,
-                        }
-                    }
-                
-        if notification:
-            return notification
-        return res
 
     def _post_invoice_to_etaxris(self):
         """ Handles posting the invoice data to the local E-Tax REST API """
