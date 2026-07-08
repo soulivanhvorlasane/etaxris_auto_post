@@ -23,13 +23,32 @@ class AccountPayment(models.Model):
         self.ensure_one()
         
         buyer_tin = self.partner_id.vat or "Unknown TIN"
-        invoice_no = getattr(self, 'memo', False) or getattr(self, 'payment_reference', False) or self.name or "Unknown Invoice"
+        
+        # Determine invoice number from payment reference
+        ref_val = getattr(self, 'memo', False) or getattr(self, 'payment_reference', False) or self.name or ""
+        invoice_no = ref_val if ref_val else "Unknown Invoice"
+        
+        # Try to find the actual invoice to get dynamic data like Untaxed Amount
+        sales_amount = float(self.amount) # Fallback to payment amount
+        invoice = self.env['account.move'].search([
+            ('name', '=', invoice_no),
+            ('move_type', '=', 'out_invoice')
+        ], limit=1)
+        
+        if invoice:
+            sales_amount = float(invoice.amount_untaxed)
+            buyer_tin = invoice.partner_id.vat or buyer_tin
+            
         payment_date = self.date
         
-        # Calculate 10% VAT
-        sales_amount = float(self.amount)
-        vat_amount = sales_amount * 0.10
-        payment_method = self.payment_method_id.name or "payment"
+        # Map Odoo payment method to E-Tax API valid selections ('bank', 'cash', 'wallet')
+        pm_name = (self.payment_method_id.name or '').lower()
+        if 'cash' in pm_name:
+            payment_method = 'cash'
+        elif 'wallet' in pm_name or 'stripe' in pm_name or 'paypal' in pm_name:
+            payment_method = 'wallet'
+        else:
+            payment_method = 'bank' # Default fallback
 
         buyer_name = self.partner_id.name or "Unknown Customer"
 
